@@ -1,3 +1,4 @@
+ // app/api/admin/products/approve-all/route.ts
 import { withCORS } from "@/lib/cors";
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
@@ -5,6 +6,7 @@ import { authOptions } from '@/app/api/auth/[...nextauth]/route';
 import { connectDB } from '@/lib/db';
 import { Product } from '@/lib/models/product';
 import Shop from '@/lib/models/shop';
+import { sendPushNotificationToMultipleVendors } from '@/lib/services/push-notification';
 
 export async function POST(req: NextRequest) {
   if (req.method === 'OPTIONS') {
@@ -34,6 +36,8 @@ export async function POST(req: NextRequest) {
     const productIds = pendingProducts.map(p => p._id);
     const shopIds = Array.from(new Set(pendingProducts.map(p => p.shopId?.toString()).filter(Boolean)));
 
+
+
     // Update all pending products to approved
     await Product.updateMany(
       { _id: { $in: productIds } },
@@ -47,6 +51,15 @@ export async function POST(req: NextRequest) {
         $unset: { rejectionReason: "" }
       }
     );
+
+    if (shopIds.length > 0) {
+  await sendPushNotificationToMultipleVendors(
+    shopIds,
+    '🎉 Bulk Product Approval',
+    `${pendingProducts.length} of your products have been approved.`,
+    { screen: 'products' }
+  );
+}
 
     // Update shop stats for all involved shops
     // For each unique shop, increment stats.totalProducts by the number of products approved for that shop

@@ -1,3 +1,4 @@
+// app/api/vendor/payout/request/route.ts
 import { withCORS } from "@/lib/cors";
 import { connectDB } from "@/lib/db";
 import { Wallet } from "@/lib/models/wallet";
@@ -7,6 +8,7 @@ import Payout from "@/lib/models/payout";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 import { NextResponse } from "next/server";
+import { sendPushNotificationToVendor } from '@/lib/services/push-notification';
 import crypto from "crypto";
 
 export async function POST(request: Request) {
@@ -79,6 +81,14 @@ export async function POST(request: Request) {
       ));
     }
 
+await sendPushNotificationToVendor(
+  shop._id.toString(),
+  '💰 Payout Request Submitted',
+  `Your request for ₹${amount} has been submitted. It will be processed within 3-5 business days.`,
+  { screen: 'wallet' }
+);
+
+
     // Check for any pending payout already in flight (prevent double-submit)
     const pendingPayout = await Payout.findOne({
       shopId: shop._id,
@@ -121,6 +131,14 @@ export async function POST(request: Request) {
       amount,
       payoutId: payout._id.toString(),
     });
+
+      await sendPushNotificationToVendor(
+  shop._id.toString(),
+  '💰 Payout Request Submitted',
+  `Your request for ₹${amount} has been submitted. It will be processed within 3-5 business days.`,
+  { screen: 'wallet' }
+);
+    
 
     return withCORS(NextResponse.json({
       success: true,

@@ -1,3 +1,4 @@
+// 
 import { withCORS } from "@/lib/cors";
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';

@@ -1,3 +1,4 @@
+ // app/api/orders/route.ts
 import { withCORS } from "@/lib/cors";
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
@@ -8,6 +9,9 @@ import { Product } from "@/lib/models/product";
 import { Cart } from "@/lib/models/cart";
 import Shop from "@/lib/models/shop";
 import { sendEmail } from "@/lib/email";
+import { sendPushNotificationToMultipleVendors } from '@/lib/services/push-notification';
+
+
 
 // Helper function to generate order number
 function generateOrderNumber(): string {
@@ -301,6 +305,19 @@ export async function POST(req: NextRequest) {
           </div>
         `,
       });
+
+      // After the email sending loop for vendors, collect unique shopIds
+const vendorShopIds = Object.keys(vendorPayouts).filter(id => id !== 'platform');
+if (vendorShopIds.length > 0) {
+  // ✅ Calculate total earnings across all vendors
+  const totalVendorEarnings = Object.values(vendorPayouts).reduce((sum, v) => sum + v.amount, 0);
+  await sendPushNotificationToMultipleVendors(
+    vendorShopIds,
+    '🛍️ New Order Received!',
+    `You have a new order #${orderNumber}. Total earnings across all vendors: ₹${totalVendorEarnings.toFixed(2)}`,
+    { screen: 'orders', orderId: order._id.toString() }
+  );
+}
 
       // 2. Send notification to each vendor
       for (const [shopId, payoutInfo] of Object.entries(vendorPayouts)) {

@@ -1,3 +1,4 @@
+// app/api/auth/register/route.ts
 import { withCORS } from "@/lib/cors";
 import { connectDB } from "@/lib/db";
 import { User } from "@/lib/models/user";

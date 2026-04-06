@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation"
 import Image from "next/image"
 import Link from "next/link"
 import { useSession } from "next-auth/react"
-import { Star, ChevronDown, X, Phone, ChevronLeft, ChevronRight, Store, Truck, ShieldCheck, Award, PackageCheck } from "lucide-react"
+import { Star, ChevronDown, X, Phone, ChevronLeft, ChevronRight, Store, Truck, ShieldCheck, Award, PackageCheck, Heart } from "lucide-react"
 import { format, formatDistanceToNow } from "date-fns"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -273,6 +273,69 @@ const ProductDetailPage = memo(function ProductDetailPage() {
   const [showImageModal, setShowImageModal] = useState(false)
   const [showBulkOrderModal, setShowBulkOrderModal] = useState(false)
 
+  // Wishlist state
+  const [isInWishlist, setIsInWishlist] = useState(false)
+  const [wishlistLoading, setWishlistLoading] = useState(false)
+
+  // Check if product is in wishlist (when authenticated)
+  const checkWishlistStatus = useCallback(async () => {
+    if (status !== "authenticated" || !id) return
+    try {
+      const res = await fetch("/api/wishlist")
+      if (!res.ok) return
+      const items = await res.json()
+      const found = items.some((item: any) => item.productId === id)
+      setIsInWishlist(found)
+    } catch (error) {
+      console.error("Failed to fetch wishlist:", error)
+    }
+  }, [id, status])
+
+  useEffect(() => {
+    checkWishlistStatus()
+  }, [checkWishlistStatus])
+
+  const handleToggleWishlist = async () => {
+    if (status !== "authenticated") {
+      toast({
+        title: "Login required",
+        description: "Please sign in to add items to your wishlist.",
+        variant: "destructive",
+      })
+      router.push(`/auth/login?callback=/products/${id}`)
+      return
+    }
+
+    setWishlistLoading(true)
+    try {
+      if (isInWishlist) {
+        // Remove from wishlist
+        const res = await fetch(`/api/wishlist/${id}`, { method: "DELETE" })
+        if (!res.ok) throw new Error("Failed to remove")
+        setIsInWishlist(false)
+        toast({ title: "Removed from wishlist", description: "Item has been removed." })
+      } else {
+        // Add to wishlist
+        const res = await fetch("/api/wishlist", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ productId: id }),
+        })
+        if (!res.ok) throw new Error("Failed to add")
+        setIsInWishlist(true)
+        toast({ title: "Added to wishlist", description: "Item saved to your wishlist." })
+      }
+    } catch (error) {
+      console.error("Wishlist error:", error)
+      toast({
+        title: "Error",
+        description: "Could not update wishlist. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setWishlistLoading(false)
+    }
+  }
 
   // Load product and suggested products
   useEffect(() => {
@@ -821,7 +884,7 @@ const ProductDetailPage = memo(function ProductDetailPage() {
                 </div>
               )}
 
-              {/* Quantity */}
+              {/* Quantity and Add to Cart + Wishlist */}
               <div className="flex items-center gap-4 pt-2">
                 <div className="flex items-center border-2 border-gray-300 rounded-lg overflow-hidden bg-white">
                   <button
@@ -866,6 +929,18 @@ const ProductDetailPage = memo(function ProductDetailPage() {
                   disabled={selectedSize ? selectedSize.stock === 0 : product.stock === 0}
                 >
                   {(selectedSize ? selectedSize.stock === 0 : product.stock === 0) ? "Out of Stock" : "Add to Cart"}
+                </Button>
+
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-14 w-14 border-2 border-gray-300 hover:border-purple-500 hover:bg-purple-50 transition-all"
+                  onClick={handleToggleWishlist}
+                  disabled={wishlistLoading}
+                >
+                  <Heart
+                    className={`h-6 w-6 transition-all ${isInWishlist ? "fill-red-500 stroke-red-500" : "stroke-gray-600"}`}
+                  />
                 </Button>
               </div>
               

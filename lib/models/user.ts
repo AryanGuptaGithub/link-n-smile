@@ -1,3 +1,4 @@
+// lib/models/user.ts
 import mongoose from "mongoose";
 
 const userSchema = new mongoose.Schema(
@@ -45,6 +46,7 @@ const userSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Shop",
     },
+    pushTokens: { type: [String], default: [] },
   },
   { timestamps: true }
 );

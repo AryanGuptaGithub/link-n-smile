@@ -1,4 +1,3 @@
-// app/vendor/wallet/WalletDashboardClient.tsx
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
@@ -15,7 +14,7 @@ import {
   ChevronDown,
   ChevronUp,
   ArrowDownToLine,
-  Info,
+  Info,           // ← Added Info import (was missing)
   Package,
   Building2,
   Receipt,
@@ -257,6 +256,65 @@ function OrderCard({ order }: { order: OrderBreakdown }) {
   );
 }
 
+// HeldOrdersSection - fetches and lists only held orders
+function HeldOrdersSection() {
+  const [heldOrders, setHeldOrders] = useState<OrderBreakdown[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchHeldOrders() {
+      try {
+        const res = await fetch('/api/vendor/wallet/orders?limit=50');
+        const data = await res.json();
+        if (data.success) {
+          const held = data.orders.filter((o: OrderBreakdown) => o.summary.settlementStatus === 'held');
+          setHeldOrders(held);
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchHeldOrders();
+  }, []);
+
+  if (loading) return <Skeleton className="h-32 w-full rounded-xl" />;
+  if (heldOrders.length === 0) return null;
+
+  return (
+    <Card className="border-orange-200 bg-orange-50/30">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-sm font-semibold flex items-center gap-2">
+          <ShieldAlert className="h-4 w-4 text-orange-600" />
+          Held Orders ({heldOrders.length})
+        </CardTitle>
+        <CardDescription className="text-xs">
+          These orders are on hold and not yet added to your withdrawable balance.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {heldOrders.map(order => (
+          <div key={order.orderId} className="bg-white rounded-lg border p-3 flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="font-medium text-sm">#{order.orderNumber}</p>
+              <p className="text-xs text-muted-foreground">{fmtDate(order.orderDate)}</p>
+            </div>
+            <div className="text-right">
+              <p className="font-semibold text-orange-700">{fmt(order.summary.vendorEarnings)}</p>
+              <p className="text-[10px] text-orange-500">Held amount</p>
+            </div>
+            <Button variant="link" size="sm" asChild className="h-auto p-0">
+              <Link href={`/vendor/orders/${order.orderId}`}>View Order →</Link>
+            </Button>
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
+
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function WalletDashboardClient() {
@@ -424,6 +482,10 @@ export default function WalletDashboardClient() {
           <CardContent className="px-4 pb-4">
             <p className="text-2xl font-bold">{fmt(wallet.totalBalance)}</p>
             <p className="text-[10px] text-muted-foreground mt-0.5">Pending + Withdrawable</p>
+            <div className="mt-2 text-sm text-gray-500 flex items-center gap-1">
+              <Info className="w-4 h-4" />
+              <span>Withdrawable: Delivered orders after 7 days settlement. Pending: Orders not yet delivered.</span>
+            </div>
           </CardContent>
         </Card>
 
@@ -463,6 +525,8 @@ export default function WalletDashboardClient() {
           </CardContent>
         </Card>
       </div>
+
+      <HeldOrdersSection />
 
       {/* ─ How It Works Explainer ─ */}
       <Card className="bg-blue-50/40 border-blue-100">

@@ -4,7 +4,7 @@ import { NextResponse, type NextRequest } from "next/server"
 import { connectDB } from "@/lib/db"
 import { Review } from "@/lib/models/review"
 import { Product } from "@/lib/models/product"
-import { Company } from "@/lib/models/company"
+import { Company } from "@/lib/models/company" 
 
 export async function GET(request: NextRequest) {
   if (request.method === 'OPTIONS') {

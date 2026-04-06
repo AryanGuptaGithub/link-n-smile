@@ -1,3 +1,4 @@
+// app/api/products/[id]/reviews/route.ts
 import { withCORS } from "@/lib/cors";
 import { connectDB } from "@/lib/db";
 import { Product } from "@/lib/models/product";

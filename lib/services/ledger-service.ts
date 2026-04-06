@@ -9,11 +9,14 @@
  * - Idempotency enforced via unique transactionId / referenceId.
  */
 
+// lib/services/ledger-service.ts
+
 import mongoose from 'mongoose';
 import crypto from 'crypto';
 import { Wallet, IWallet } from '../models/wallet';
 import { LedgerEntry } from '../models/ledger';
 import { AuditLog } from '../models/audit-log';
+import { sendPushNotificationToVendor } from './push-notification';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Helpers
@@ -528,6 +531,12 @@ export class LedgerService {
         );
 
         await session.commitTransaction();
+        await sendPushNotificationToVendor(
+  entry.shopId.toString(), // ensure shopId is stored on LedgerEntry (it should be)
+  '💰 Funds Cleared',
+  `₹${entry.amount} from your order earnings is now available for withdrawal.`,
+  { screen: 'wallet' }
+);
         cleared++;
       } catch (error) {
         await session.abortTransaction();

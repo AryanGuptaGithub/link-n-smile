@@ -22,7 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Search, Eye, Package, DollarSign, Calendar } from 'lucide-react';
+import { Search, Eye, Package, DollarSign, Calendar, Info } from 'lucide-react';
 import { toast } from 'sonner';
 import Image from 'next/image';
 
@@ -40,6 +40,7 @@ interface Order {
   payoutStatus: string;
   paymentStatus: string;
   orderStatus: string;
+  cancellationReason?: string; // Added for vendor cancellations
   createdAt: string;
 }
 
@@ -73,7 +74,7 @@ export default function VendorOrdersPage() {
     }
   };
 
-  const getStatusBadge = (status: string) => {
+  const getStatusBadge = (status: string, reason?: string) => {
     const variants: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
       pending: 'outline',
       processing: 'secondary',
@@ -87,7 +88,7 @@ export default function VendorOrdersPage() {
       processing: 'text-blue-600 border-blue-600',
       shipped: 'text-purple-600 border-purple-600',
       delivered: 'text-green-600 border-green-600',
-      cancelled: 'text-red-600 border-red-600',
+      cancelled: 'text-white border-red-600',
     };
 
     return (
@@ -260,7 +261,7 @@ export default function VendorOrdersPage() {
                     <TableCell>
                       <div>
                         <p className="font-medium">{order.user.name}</p>
-                        <p className="text-sm bg-purple-100 text-purple-700 hover:bg-purple-200 border-none">{order.user.email}</p>
+                        <p className="text-sm text-muted-foreground">{order.user.email}</p>
                       </div>
                     </TableCell>
                     <TableCell>
@@ -298,7 +299,24 @@ export default function VendorOrdersPage() {
                       </p>
                     </TableCell>
                     <TableCell>{getPayoutBadge(order.payoutStatus)}</TableCell>
-                    <TableCell>{getStatusBadge(order.orderStatus)}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1">
+                        {getStatusBadge(order.orderStatus)}
+                        {order.orderStatus === 'cancelled' && order.cancellationReason && (
+                          <div className="relative group">
+                            <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                            <div className="absolute z-10 invisible group-hover:visible bg-gray-900 text-white text-xs rounded py-1 px-2 w-48 bottom-full left-1/2 -translate-x-1/2 mb-1">
+                              Cancellation reason: {order.cancellationReason}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      {order.orderStatus === 'cancelled' && order.cancellationReason && (
+                        <p className="text-xs text-red-500 mt-1 truncate max-w-[150px]">
+                          Reason: {order.cancellationReason}
+                        </p>
+                      )}
+                    </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <Calendar className="h-4 w-4 text-muted-foreground" />

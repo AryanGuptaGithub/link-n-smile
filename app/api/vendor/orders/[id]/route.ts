@@ -1,3 +1,4 @@
+// app/api/vendor/orders/[id]/route.ts
 import { withCORS } from "@/lib/cors";
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
@@ -21,12 +22,10 @@ export async function GET(
     await connectDB();
 
     const shopId = session.user.shopId;
-
     if (!shopId) {
       return withCORS(NextResponse.json({ message: 'Shop not found' }, { status: 404 }));
     }
 
-    // Convert shopId string to ObjectId for proper comparison
     let shopObjectId: mongoose.Types.ObjectId;
     try {
       shopObjectId = new mongoose.Types.ObjectId(shopId);
@@ -43,7 +42,7 @@ export async function GET(
       return withCORS(NextResponse.json({ message: 'Order not found' }, { status: 404 }));
     }
 
-    // Check if this order contains vendor's products (using ObjectId equality)
+    // Check if this order contains vendor's products
     const hasVendorItems = order.items.some(
       (item: any) => item.shopId && shopObjectId.equals(item.shopId)
     );
@@ -57,13 +56,18 @@ export async function GET(
       (item: any) => item.shopId && shopObjectId.equals(item.shopId)
     );
 
-    // Calculate vendor's totals
     const vendorSubtotal = vendorItems.reduce((sum: number, item: any) => {
-      return sum + (item.price * item.quantity);
+      const price = item.selectedSize?.price ?? item.price ?? 0;
+      return sum + price * (item.quantity || 1);
     }, 0);
 
     const vendorPayout = order.vendorPayouts?.find(
       (p: any) => p.shopId && shopObjectId.equals(p.shopId)
+    );
+
+    const vendorEarnings = vendorItems.reduce(
+      (sum: number, item: any) => sum + (item.vendorEarnings || 0),
+      0
     );
 
     const vendorOrder = {
@@ -72,13 +76,14 @@ export async function GET(
       user: order.user,
       items: vendorItems,
       vendorSubtotal,
-      vendorEarnings: vendorPayout?.amount || 0,
-      platformCommission: vendorSubtotal - (vendorPayout?.amount || 0),
+      vendorEarnings: vendorEarnings || vendorPayout?.amount || 0,
+      platformCommission: vendorSubtotal - (vendorEarnings || vendorPayout?.amount || 0),
       payoutStatus: vendorPayout?.status || 'pending',
       shippingAddress: order.shippingAddress,
       paymentMethod: order.paymentMethod,
       paymentStatus: order.paymentStatus,
       orderStatus: order.orderStatus,
+      cancellationReason: (order as any).cancellationReason,
       razorpayOrderId: order.razorpayOrderId,
       razorpayPaymentId: order.razorpayPaymentId,
       createdAt: order.createdAt,
@@ -105,20 +110,26 @@ export async function PATCH(
   const { id } = await params;
   try {
     const session = await getServerSession(authOptions);
-
     if (!session || session.user.role !== 'shop_owner') {
       return withCORS(NextResponse.json({ message: 'Unauthorized' }, { status: 401 }));
     }
 
     await connectDB();
-
     const shopId = session.user.shopId;
     const body = await req.json();
-    const { orderStatus } = body;
+    const { orderStatus, cancellationReason } = body;
 
     const validStatuses = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
     if (!validStatuses.includes(orderStatus)) {
       return withCORS(NextResponse.json({ message: 'Invalid status' }, { status: 400 }));
+    }
+
+    // Require reason when cancelling
+    if (orderStatus === 'cancelled' && !cancellationReason?.trim()) {
+      return withCORS(NextResponse.json(
+        { message: 'Please provide a reason for cancellation' },
+        { status: 400 }
+      ));
     }
 
     let shopObjectId: mongoose.Types.ObjectId;
@@ -129,26 +140,54 @@ export async function PATCH(
     }
 
     const order = await Order.findById(id);
-
     if (!order) {
       return withCORS(NextResponse.json({ message: 'Order not found' }, { status: 404 }));
     }
 
-    // Check if this order contains vendor's products (using ObjectId equality)
     const hasVendorItems = order.items.some(
       (item: any) => item.shopId && shopObjectId.equals(item.shopId)
     );
-
     if (!hasVendorItems) {
       return withCORS(NextResponse.json({ message: 'Access denied' }, { status: 403 }));
     }
 
+    // Prevent going backwards in status
+    const statusOrder = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
+    const currentIdx = statusOrder.indexOf(order.orderStatus);
+    const newIdx = statusOrder.indexOf(orderStatus);
+    if (orderStatus !== 'cancelled' && newIdx < currentIdx) {
+      return withCORS(NextResponse.json(
+        { message: `Cannot change status from "${order.orderStatus}" to "${orderStatus}"` },
+        { status: 400 }
+      ));
+    }
+
     order.orderStatus = orderStatus;
+
+    if (orderStatus === 'cancelled' && cancellationReason) {
+      (order as any).cancellationReason = cancellationReason.trim();
+    }
+
+    // When delivered, mark vendor payout as pending-clearance (ready to release after 7 days)
+    if (orderStatus === 'delivered') {
+      const payoutIdx = order.vendorPayouts?.findIndex(
+        (p: any) => p.shopId && shopObjectId.equals(p.shopId)
+      );
+      if (payoutIdx !== undefined && payoutIdx >= 0) {
+        order.vendorPayouts[payoutIdx].status = 'pending'; // will be released by cron after 7 days
+      }
+    }
+
     await order.save();
 
     return withCORS(NextResponse.json({
       success: true,
       message: `Order status updated to ${orderStatus}`,
+      order: {
+        _id: order._id,
+        orderStatus: order.orderStatus,
+        cancellationReason: (order as any).cancellationReason,
+      },
     }));
   } catch (error: any) {
     console.error('Vendor order status update error:', error);

@@ -1,3 +1,4 @@
+// app/api/admin/payouts/route.ts
 import { withCORS } from "@/lib/cors";
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
@@ -8,6 +9,7 @@ import { Order } from '@/lib/models/order';
 import Shop from '@/lib/models/shop';
 import { LedgerService } from '@/lib/services/ledger-service';
 import { sendEmail, getPayoutStatusEmail } from '@/lib/email';
+import { sendPushNotificationToVendor } from '@/lib/services/push-notification';
 
 export async function GET(req: NextRequest) {
   if (req.method === 'OPTIONS') {
@@ -139,6 +141,25 @@ export async function PUT(req: NextRequest) {
       { status: nextStatus, ...updateFields },
       { new: true }
     );
+
+    // After updatedPayout is saved, before email (or after)
+const shopId = payout.shopId.toString();
+let title = '', body = '';
+
+if (action === 'approve') {
+  title = '💰 Payout Approved';
+  body = `Your payout request of ₹${payout.amount.toFixed(2)} has been approved. Funds will be transferred shortly.`;
+} else if (action === 'complete') {
+  title = '✅ Payout Completed';
+  body = `Your payout of ₹${payout.amount.toFixed(2)} has been sent to your bank account. Transaction ID: ${transactionId}`;
+} else if (action === 'reject') {
+  title = '❌ Payout Rejected';
+  body = `Your payout request of ₹${payout.amount.toFixed(2)} was rejected. Reason: ${failureReason}`;
+}
+
+if (title) {
+  await sendPushNotificationToVendor(shopId, title, body, { screen: 'wallet' });
+}
 
     // Notify vendor via email
     try {

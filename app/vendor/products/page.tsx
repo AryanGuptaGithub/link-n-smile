@@ -22,7 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Plus, Search, Edit, Trash2, Eye, CheckCircle, Clock, XCircle, Package } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Eye, CheckCircle, Clock, XCircle, Package, BarChart3 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   AlertDialog,
@@ -34,6 +34,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import Image from 'next/image';
 
 interface Product {
@@ -52,6 +58,12 @@ interface Product {
   company?: { name: string };
 }
 
+interface ProductStats {
+  totalOrders: number;
+  totalQuantity: number;
+  totalRevenue: number;
+}
+
 export default function VendorProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,6 +71,10 @@ export default function VendorProductsPage() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [statsDialogOpen, setStatsDialogOpen] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [productStats, setProductStats] = useState<ProductStats | null>(null);
+  const [loadingStats, setLoadingStats] = useState(false);
 
   useEffect(() => {
     fetchProducts();
@@ -113,6 +129,25 @@ export default function VendorProductsPage() {
       toast.error('Failed to delete product');
     } finally {
       setDeleting(false);
+    }
+  };
+
+  const handleViewStats = async (product: Product) => {
+    setSelectedProduct(product);
+    setStatsDialogOpen(true);
+    setLoadingStats(true);
+    try {
+      const res = await fetch(`/api/vendor/products/stats`);
+      const data = await res.json();
+      // Find stats for this product
+      const statsForProduct = data.find((s: any) => s._id === product._id);
+      setProductStats(statsForProduct || { totalOrders: 0, totalQuantity: 0, totalRevenue: 0 });
+    } catch (error) {
+      console.error('Failed to fetch stats:', error);
+      toast.error('Failed to load product stats');
+      setProductStats(null);
+    } finally {
+      setLoadingStats(false);
     }
   };
 
@@ -218,13 +253,14 @@ export default function VendorProductsPage() {
             </div>
           ) : (
             <Table>
-              <TableHeader className=''>
+              <TableHeader>
                 <TableRow>
-                  <TableHead className='text-center'>Product</TableHead>
+                  <TableHead>Product</TableHead>
                   <TableHead>Price</TableHead>
                   <TableHead>Stock</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Created</TableHead>
+                  <TableHead className="text-center">Orders</TableHead>
                   <TableHead className="text-center">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -282,13 +318,18 @@ export default function VendorProductsPage() {
                     <TableCell>
                       {new Date(product.createdAt).toLocaleDateString()}
                     </TableCell>
+                    <TableCell className="text-center">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleViewStats(product)}
+                      >
+                        <BarChart3 className="h-4 w-4 mr-1" />
+                        Stats
+                      </Button>
+                    </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
-                        {/* <Button variant="outline" size="sm" asChild>
-                          <Link href={`/shop/${product.company?.name || 'brand'}/product/${product._id}`}>
-                            <Eye className="h-4 w-4" />
-                          </Link>
-                        </Button> */}
                         <Button variant="outline" size="sm" asChild>
                           <Link href={`/vendor/products/edit/${product._id}`}>
                             <Edit className="h-4 w-4" />
@@ -334,6 +375,44 @@ export default function VendorProductsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Product Stats Dialog */}
+      <Dialog open={statsDialogOpen} onOpenChange={setStatsDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Product Performance: {selectedProduct?.name}</DialogTitle>
+          </DialogHeader>
+          {loadingStats ? (
+            <div className="flex justify-center py-8">
+              <Skeleton className="h-32 w-full" />
+            </div>
+          ) : productStats ? (
+            <div className="space-y-4 py-4">
+              <div className="grid grid-cols-3 gap-4 text-center">
+                <div className="bg-blue-50 p-3 rounded-lg">
+                  <p className="text-2xl font-bold text-blue-700">{productStats.totalOrders}</p>
+                  <p className="text-xs text-blue-600">Total Orders</p>
+                </div>
+                <div className="bg-green-50 p-3 rounded-lg">
+                  <p className="text-2xl font-bold text-green-700">{productStats.totalQuantity}</p>
+                  <p className="text-xs text-green-600">Units Sold</p>
+                </div>
+                <div className="bg-purple-50 p-3 rounded-lg">
+                  <p className="text-2xl font-bold text-purple-700">₹{productStats.totalRevenue.toLocaleString()}</p>
+                  <p className="text-xs text-purple-600">Revenue (Your Earnings)</p>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground text-center">
+                Stats based on completed/delivered orders only.
+              </p>
+            </div>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              No sales data available for this product yet.
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

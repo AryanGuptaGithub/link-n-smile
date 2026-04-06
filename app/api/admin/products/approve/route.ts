@@ -1,3 +1,4 @@
+// /app/api/admin/products/approve/route.ts
 import { withCORS } from "@/lib/cors";
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
@@ -6,6 +7,7 @@ import { connectDB } from '@/lib/db';
 import { Product } from '@/lib/models/product';
 import Shop from '@/lib/models/shop';
 import { sendEmail } from '@/lib/email';
+import { sendPushNotificationToVendor } from '@/lib/services/push-notification';
 
 export async function POST(req: NextRequest) {
   if (req.method === 'OPTIONS') {
@@ -59,6 +61,26 @@ export async function POST(req: NextRequest) {
               <p>Customers can now view and purchase this product.</p>
             `,
           });
+
+          // After email sending (or inside the try block)
+const shopId = product.shopId?._id?.toString() || product.shopId?.toString();
+if (shopId) {
+  if (action === 'approve') {
+    await sendPushNotificationToVendor(
+      shopId,
+      '✅ Product Approved',
+      `Your product "${product.name}" has been approved and is now live.`,
+      { screen: 'products', productId: product._id.toString() }
+    );
+  } else if (action === 'reject') {
+    await sendPushNotificationToVendor(
+      shopId,
+      '❌ Product Rejected',
+      `Your product "${product.name}" was not approved. Reason: ${rejectionReason || 'Not specified'}`,
+      { screen: 'products', productId: product._id.toString() }
+    );
+  }
+}
         } catch (emailError) {
           console.error('Failed to send approval email:', emailError);
         }

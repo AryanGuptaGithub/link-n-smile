@@ -1,3 +1,4 @@
+// app/vendor/wallet/WalletDashboardClient.tsx
 'use client';
 
 import { useState, useEffect } from 'react';

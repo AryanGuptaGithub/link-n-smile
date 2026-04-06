@@ -1,3 +1,4 @@
+// app/api/auth/reset-password/route.ts
 import { withCORS } from "@/lib/cors";
 import { NextResponse } from "next/server"
 import { connectDB } from "@/lib/db"

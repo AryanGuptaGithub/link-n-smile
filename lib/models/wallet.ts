@@ -1,3 +1,4 @@
+// lib/models/wallet.ts
 import mongoose, { Schema, Document, Model } from 'mongoose';
 
 export interface IWallet extends Document {

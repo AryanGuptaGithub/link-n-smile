@@ -35,15 +35,11 @@ export async function GET(
       if (shop) shopId = shop._id.toString();
     }
 
-    // Check if product belongs to vendor's shop
     if (product.shopId?.toString() !== shopId) {
       return withCORS(NextResponse.json({ message: 'Unauthorized - Not your product' }, { status: 403 }));
     }
 
-    return withCORS(NextResponse.json({
-      success: true,
-      product,
-    }));
+    return withCORS(NextResponse.json({ success: true, product }));
   } catch (error: any) {
     console.error('Product fetch error:', error);
     return withCORS(NextResponse.json(
@@ -80,33 +76,44 @@ export async function PUT(
       if (shop) shopId = shop._id.toString();
     }
 
-    // Check if product belongs to vendor's shop
     if (product.shopId?.toString() !== shopId) {
       return withCORS(NextResponse.json({ message: 'Unauthorized - Not your product' }, { status: 403 }));
     }
 
     const body = await req.json();
 
-    // If product is approved and vendor makes changes, set back to pending
-    const updates: any = { ...body };
-    
-    if (product.approvalStatus === 'approved') {
-      updates.approvalStatus = 'pending';
-      updates.submittedAt = new Date();
-      updates.isActive = false;
+    // FIX: Sanitize ObjectId fields — never let an empty string or 'none'
+    // reach Mongoose, it will throw a CastError and the update silently fails.
+    const sanitized: Record<string, any> = { ...body };
+
+    if (!sanitized.category || sanitized.category === 'none') {
+      // Use $unset to clear the field rather than setting it to ""
+      delete sanitized.category;
+    }
+    if (!sanitized.company || sanitized.company === 'none') {
+      delete sanitized.company;
     }
 
-    // Update product
+    // If product is currently approved and vendor is making changes,
+    // reset approval so admin has to re-approve with new details
+    if (product.approvalStatus === 'approved') {
+      sanitized.approvalStatus = 'pending';
+      sanitized.submittedAt = new Date();
+      sanitized.isActive = false;
+    }
+
+    // FIX: use $set so we only update provided fields and don't accidentally
+    // wipe fields that weren't included in the payload
     const updatedProduct = await Product.findByIdAndUpdate(
       id,
-      updates,
+      { $set: sanitized },
       { new: true, runValidators: true }
     );
 
     return withCORS(NextResponse.json({
       success: true,
-      message: product.approvalStatus === 'approved' 
-        ? 'Product updated and resubmitted for approval' 
+      message: product.approvalStatus === 'approved'
+        ? 'Product updated and resubmitted for approval'
         : 'Product updated successfully',
       product: updatedProduct,
     }));
@@ -146,29 +153,13 @@ export async function DELETE(
       if (shop) shopId = shop._id.toString();
     }
 
-    // Check if product belongs to vendor's shop
     if (product.shopId?.toString() !== shopId) {
       return withCORS(NextResponse.json({ message: 'Unauthorized - Not your product' }, { status: 403 }));
     }
 
-    // Optional: If you want to allow deleting approved products, remove or modify the block below.
-    // Given the 403 error, this is a likely culprit if shopId was already correct.
-    // I will comment it out to allow the user to delete their products.
-    /*
-    if (product.approvalStatus === 'approved') {
-      return withCORS(NextResponse.json(
-        { message: 'Cannot delete approved products. Please contact admin.' },
-        { status: 403 }
-      ));
-    }
-    */
-
     await Product.findByIdAndDelete(id);
 
-    return withCORS(NextResponse.json({
-      success: true,
-      message: 'Product deleted successfully',
-    }));
+    return withCORS(NextResponse.json({ success: true, message: 'Product deleted successfully' }));
   } catch (error: any) {
     console.error('Product delete error:', error);
     return withCORS(NextResponse.json(

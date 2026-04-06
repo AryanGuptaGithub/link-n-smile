@@ -1,3 +1,4 @@
+// app/api/categories/route.ts
 import { withCORS } from "@/lib/cors";
 import { connectDB } from "@/lib/db";
 import { Category } from "@/lib/models/category";
