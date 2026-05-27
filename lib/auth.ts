@@ -1,12 +1,12 @@
-// lib/auth.ts
 import { hash, compare } from "bcryptjs"
-import { authOptions } from '@/lib/auth';
 
 export async function hashPassword(password: string) {
   return hash(password, 12)
 }
 
-export async function verifyPassword(password: string, hashedPassword: string) {
+export async function verifyPassword(
+  password: string,
+  hashedPassword: string
+) {
   return compare(password, hashedPassword)
 }
-

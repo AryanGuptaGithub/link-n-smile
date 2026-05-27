@@ -1,459 +1,353 @@
-"use client";
+// components/auth/register-form.tsx
+"use client"
 
-import type React from "react";
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import Image from "next/image";
-import { trackCompleteRegistration } from "@/lib/facebook-pixel";
-import { AlertCircle, CheckCircle2, Eye, EyeOff, Loader2, Lock, Mail, ShieldCheck, Sparkles, UserRound, Verified } from "lucide-react";
-import OtpForm from "./otp-form";
-import LinkAndSmileLogo from "@/public/LinkAndSmileLogo.png";
+import type React from "react"
+import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
+import { useSession } from "next-auth/react"
+import { Input } from "@/components/ui/input"
+import Image from "next/image"
+import { trackCompleteRegistration } from "@/lib/facebook-pixel"
+import {
+  AlertCircle, CheckCircle2, Eye, EyeOff, Loader2,
+  Lock, Mail, ShieldCheck, UserRound, Store, User,
+} from "lucide-react"
+import OtpForm from "./otp-form"
+import LinkAndSmileLogo from "@/public/LinkAndSmileLogo.png"
 
 export function RegisterForm() {
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [error, setError] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [nameError, setNameError] = useState("");
-  const [emailError, setEmailError] = useState("");
-  const [passwordError, setPasswordError] = useState("");
-  const [confirmError, setConfirmError] = useState("");
-  const [showOtp, setShowOtp] = useState(false);
-  const router = useRouter();
-  const { data: session } = useSession();
+  const [name, setName] = useState("")
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [confirmPassword, setConfirmPassword] = useState("")
+  const [error, setError] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false)
+  const [nameError, setNameError] = useState("")
+  const [emailError, setEmailError] = useState("")
+  const [passwordError, setPasswordError] = useState("")
+  const [confirmError, setConfirmError] = useState("")
+  const [showOtp, setShowOtp] = useState(false)
+  const router = useRouter()
+  const { data: session } = useSession()
 
-  useEffect(() => {
-    if (session?.user) {
-      router.push("/");
-    }
-  }, [session, router]);
+  useEffect(() => { if (session?.user) router.push("/") }, [session, router])
 
-  const validateName = (value: string) => {
-    if (!value.trim()) {
-      setNameError("Name is required");
-      return false;
-    }
-    if (value.trim().length < 2) {
-      setNameError("Please enter your full name");
-      return false;
-    }
-    setNameError("");
-    return true;
-  };
-
-  const validateEmail = (value: string) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!value.trim()) {
-      setEmailError("Email is required");
-      return false;
-    }
-    if (!emailRegex.test(value.trim())) {
-      setEmailError("Please enter a valid email address");
-      return false;
-    }
-    setEmailError("");
-    return true;
-  };
-
-  const validatePassword = (value: string) => {
-    if (!value) {
-      setPasswordError("Password is required");
-      return false;
-    }
-    if (value.length < 6) {
-      setPasswordError("Password must be at least 6 characters");
-      return false;
-    }
-    setPasswordError("");
-    return true;
-  };
-
-  const validateConfirmPassword = (value: string) => {
-    if (!value) {
-      setConfirmError("Please confirm your password");
-      return false;
-    }
-    if (value !== password) {
-      setConfirmError("Passwords do not match");
-      return false;
-    }
-    setConfirmError("");
-    return true;
-  };
+  const validateName = (v: string) => {
+    if (!v.trim()) { setNameError("Name is required"); return false }
+    if (v.trim().length < 2) { setNameError("Enter your full name"); return false }
+    setNameError(""); return true
+  }
+  const validateEmail = (v: string) => {
+    if (!v.trim()) { setEmailError("Email is required"); return false }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim())) { setEmailError("Enter a valid email address"); return false }
+    setEmailError(""); return true
+  }
+  const validatePassword = (v: string) => {
+    if (!v) { setPasswordError("Password is required"); return false }
+    if (v.length < 6) { setPasswordError("Password must be at least 6 characters"); return false }
+    setPasswordError(""); return true
+  }
+  const validateConfirmPassword = (v: string) => {
+    if (!v) { setConfirmError("Please confirm your password"); return false }
+    if (v !== password) { setConfirmError("Passwords do not match"); return false }
+    setConfirmError(""); return true
+  }
 
   async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setError("");
-
-    const isNameValid = validateName(name);
-    const isEmailValid = validateEmail(email);
-    const isPasswordValid = validatePassword(password);
-    const isConfirmValid = validateConfirmPassword(confirmPassword);
-
-    if (!isNameValid || !isEmailValid || !isPasswordValid || !isConfirmValid) {
-      return;
-    }
-
-    setIsLoading(true);
-
+    e.preventDefault()
+    setError("")
+    if (!validateName(name) || !validateEmail(email) || !validatePassword(password) || !validateConfirmPassword(confirmPassword)) return
+    setIsLoading(true)
     try {
-      const response = await fetch("/api/auth/register", {
+      const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, email, password, confirmPassword }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        setError(data.error || "Registration failed");
-        return;
-      }
-
-      try {
-        trackCompleteRegistration(email, "completed");
-      } catch (_) {}
-
-      setShowOtp(true);
-      return;
-    } catch (err) {
-      setError("An error occurred. Please try again.");
+      })
+      const data = await res.json()
+      if (!res.ok) { setError(data.error || "Registration failed"); return }
+      try { trackCompleteRegistration(email, "completed") } catch (_) {}
+      setShowOtp(true)
+    } catch {
+      setError("An error occurred. Please try again.")
     } finally {
-      setIsLoading(false);
+      setIsLoading(false)
     }
   }
 
+  // ── OTP step ──
   if (showOtp) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-primary-soft/50 dark:bg-neutral-900 py-12 px-4 sm:px-6 lg:px-8">
-        <Card className="w-full max-w-lg border border-primary-500/10 shadow-xl bg-white/90 dark:bg-neutral-800/90 backdrop-blur-xl rounded-2xl overflow-hidden animate-scale-in">
-          <CardHeader className="space-y-2 pb-6 bg-gradient-primary-soft/70 dark:bg-primary-500/5 border-b border-primary-500/10">
-            <CardTitle className="text-2xl font-bold text-gradient">Verify Your Email</CardTitle>
-            <CardDescription className="text-muted-foreground text-base">
-              Enter the verification code we sent to <span className="font-semibold text-foreground">{email}</span>
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="pt-6">
-            <OtpForm
-              email={email}
-              onSuccess={() => {
-                router.push("/auth/login?registered=true&verified=true");
-              }}
-            />
-            <div className="mt-6 text-center text-sm text-muted-foreground">
-              Already verified?{" "}
-              <button
-                type="button"
-                onClick={() => router.push("/auth/login")}
-                className="text-primary-600 dark:text-primary-400 font-semibold hover:underline"
-                disabled={isLoading}
-              >
-                Sign in here
-              </button>
+      <div className="min-h-screen bg-stone-50 flex items-center justify-center py-12 px-4">
+        <div className="w-full max-w-md">
+          <div className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
+            <div className="px-7 pt-7 pb-5 border-b border-stone-100">
+              <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center mb-4">
+                <ShieldCheck className="w-5 h-5 text-amber-600" />
+              </div>
+              <h2 className="text-xl font-bold text-stone-900">Verify your email</h2>
+              <p className="text-sm text-stone-400 mt-1">
+                Enter the code we sent to <span className="font-semibold text-stone-700">{email}</span>
+              </p>
             </div>
-          </CardContent>
-        </Card>
+            <div className="px-7 py-6">
+              <OtpForm email={email} onSuccess={() => router.push("/auth/login?registered=true&verified=true")} />
+              <p className="text-center text-sm text-stone-400 mt-5">
+                Already verified?{" "}
+                <button
+                  type="button"
+                  onClick={() => router.push("/auth/login")}
+                  className="text-amber-600 font-semibold hover:text-amber-700 transition-colors"
+                >
+                  Sign in
+                </button>
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
-    );
+    )
   }
 
+  // ── Registration form ──
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-primary-soft/50 dark:bg-neutral-900 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="w-full max-w-6xl animate-slide-up">
-        <div className="grid lg:grid-cols-2 gap-8 items-center">
-          
-          {/* Left Side - Welcome Section */}
-          <div className="hidden lg:flex flex-col justify-center space-y-8 px-8">
-            <div className="space-y-6">
-              <h1 className="text-5xl font-bold leading-tight text-gradient">
-                Join the
+    <div className="min-h-screen bg-stone-50 flex items-center justify-center py-12 px-4">
+      <div className="w-full max-w-5xl">
+        <div className="grid lg:grid-cols-2 gap-10 items-start">
+
+          {/* ── Left: brand panel ── */}
+          <div className="hidden lg:flex flex-col justify-center space-y-8 pr-8 border-r border-stone-200 pt-4">
+            <div className="relative w-full max-w-[280px] h-24">
+              <Image src={LinkAndSmileLogo} alt="LinkAndSmile" fill className="object-contain object-left" priority />
+            </div>
+
+            <div>
+              <h1 className="text-4xl font-bold text-stone-900 leading-tight mb-3">
+                Join our community.
               </h1>
-              
-              <div className="flex items-center gap-4">
-                <div className="relative w-full max-w-[400px] h-40 rounded-2xl overflow-hidden shadow-glow ring-primary-500/20">
-                  <Image
-                    src={LinkAndSmileLogo}
-                    alt="LinkAndSmile Logo"
-                    fill
-                    className="object-cover"
-                    priority
-                  />
-                </div>
-              </div>
+              <p className="text-stone-500 text-base leading-relaxed">
+                Discover local brands, artisan products, and sellers you can trust — all in one place.
+              </p>
+            </div>
 
-              <div className="space-y-4">
-                <h2 className="text-3xl font-bold text-foreground">Glow Community</h2>
-                <p className="text-lg text-muted-foreground leading-relaxed">
-                  Create your account to access curated skincare routines, exclusive offers, and personalized beauty guidance tailored just for you.
-                </p>
-              </div>
-
-              {/* Features with premium styling */}
-              <div className="space-y-4 pt-4">
-                {[
-                  { icon: Sparkles, title: "Curated Experiences", desc: "Tailored skincare journeys designed by experts" },
-                  { icon: ShieldCheck, title: "Secure & Private", desc: "Your information stays protected with us" },
-                  { icon: Verified, title: "Verified Results", desc: "Trusted by thousands of radiant customers" }
-                ].map((feature, index) => (
-                  <div key={index} className="flex items-start gap-3 group">
-                    <div className="w-10 h-10 rounded-full bg-gradient-primary-soft flex items-center justify-center flex-shrink-0 group-hover:scale-110 group-hover:bg-gradient-primary-subtle transition-all duration-300">
-                      <feature.icon className="w-5 h-5 text-primary-600 dark:text-primary-400" />
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-foreground">{feature.title}</h3>
-                      <p className="text-sm text-muted-foreground">{feature.desc}</p>
-                    </div>
+            <div className="space-y-3">
+              {[
+                { label: "Support local sellers", sub: "Every purchase empowers an Indian small business" },
+                { label: "Curated quality", sub: "Products reviewed before they go live on the platform" },
+                { label: "Track every order", sub: "Full order history and easy returns in your account" },
+              ].map(({ label, sub }) => (
+                <div key={label} className="flex items-start gap-3">
+                  <div className="mt-0.5 w-5 h-5 rounded-full bg-amber-100 flex items-center justify-center shrink-0">
+                    <CheckCircle2 className="w-3 h-3 text-amber-600" />
                   </div>
-                ))}
+                  <div>
+                    <p className="text-sm font-semibold text-stone-800">{label}</p>
+                    <p className="text-xs text-stone-400">{sub}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Account type chooser hint */}
+            <div className="grid grid-cols-2 gap-3 pt-2">
+              <div className="p-3.5 rounded-xl bg-stone-50 border border-stone-200">
+                <User className="w-5 h-5 text-amber-500 mb-2" />
+                <p className="text-xs font-bold text-stone-800 mb-0.5">Customer</p>
+                <p className="text-[11px] text-stone-400">Shop from local brands</p>
+              </div>
+              <div className="p-3.5 rounded-xl bg-stone-50 border border-stone-200">
+                <Store className="w-5 h-5 text-amber-500 mb-2" />
+                <p className="text-xs font-bold text-stone-800 mb-0.5">Vendor</p>
+                <p className="text-[11px] text-stone-400">Sell your products</p>
               </div>
             </div>
           </div>
 
-          {/* Right Side - Register Form */}
-          <div className="w-full max-w-md mx-auto lg:mx-0">
-            <Card className="border border-primary-500/10 shadow-xl bg-white/90 dark:bg-neutral-800/90 backdrop-blur-xl rounded-2xl overflow-hidden">
-              
-              <CardHeader className="space-y-2 pb-6 bg-gradient-primary-soft/70 dark:bg-primary-500/5 border-b border-primary-500/10">
-                <CardTitle className="text-2xl font-bold text-gradient">
-                  Create Account
-                </CardTitle>
-                <CardDescription className="text-muted-foreground text-base">
-                  Fill in your details to start your LinkAndSmile journey
-                </CardDescription>
-              </CardHeader>
+          {/* ── Right: form card ── */}
+          <div className="w-full max-w-md mx-auto">
+            <div className="bg-white rounded-2xl border border-stone-200 shadow-sm overflow-hidden">
 
-              <CardContent className="pt-6">
-                <form onSubmit={onSubmit} className="space-y-5">
+              <div className="px-7 pt-7 pb-5 border-b border-stone-100">
+                <div className="lg:hidden mb-5 relative w-32 h-10">
+                  <Image src={LinkAndSmileLogo} alt="LinkAndSmile" fill className="object-contain object-left" />
+                </div>
+                <h2 className="text-xl font-bold text-stone-900">Create account</h2>
+                <p className="text-sm text-stone-400 mt-0.5">Fill in your details to get started</p>
+              </div>
+
+              <div className="px-7 py-6">
+                <form onSubmit={onSubmit} className="space-y-4">
+
                   {error && (
-                    <Alert variant="destructive" className="bg-error-50/90 dark:bg-error-500/10 border-2 border-error-200 animate-scale-in">
-                      <AlertCircle className="h-5 w-5 text-error-600" />
-                      <AlertDescription className="ml-2 text-error-700 dark:text-error-300 font-medium whitespace-pre-wrap">
-                        {typeof error === "string" ? error : JSON.stringify(error)}
-                      </AlertDescription>
-                    </Alert>
+                    <div className="flex items-start gap-2.5 bg-red-50 border border-red-100 text-red-700 rounded-xl px-3.5 py-3">
+                      <AlertCircle className="w-4 h-4 mt-0.5 shrink-0" />
+                      <p className="text-sm font-medium">{error}</p>
+                    </div>
                   )}
 
-                  {/* Name Field */}
-                  <div className="space-y-2">
-                    <label htmlFor="name" className="text-sm font-semibold text-foreground/80 flex items-center gap-2">
-                      <UserRound className="h-4 w-4 text-primary-500" />
-                      Full Name
-                    </label>
-                    <div className="relative">
-                      <Input
-                        id="name"
-                        type="text"
-                        placeholder="John Doe"
-                        value={name}
-                        onChange={(e) => {
-                          setName(e.target.value);
-                          if (nameError) validateName(e.target.value);
-                        }}
-                        onBlur={() => validateName(name)}
-                        className={`pl-4 pr-10 h-12 text-base border-2 rounded-xl transition-all duration-200 focus:ring-2 focus:ring-primary-500/20 ${
-                          nameError
-                            ? "border-error-400 focus:border-error-500 bg-error-50/50"
-                            : name && !nameError
-                            ? "border-success-400 focus:border-success-500 bg-success-50/50"
-                            : "border-input hover:border-primary-400"
-                        }`}
-                        disabled={isLoading}
-                      />
-                      {name && !nameError && (
-                        <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-success-600 animate-scale-in" />
-                      )}
-                    </div>
-                    {nameError && (
-                      <p className="text-sm text-error-600 flex items-center gap-1 font-medium animate-slide-up">
-                        <AlertCircle className="h-4 w-4" />
-                        {nameError}
-                      </p>
-                    )}
-                  </div>
+                  {/* Name */}
+                  <FieldWrapper
+                    id="name" label="Full name" icon={<UserRound className="w-3.5 h-3.5 text-amber-500" />}
+                    error={nameError}
+                    hasValue={!!name}
+                  >
+                    <Input
+                      id="name" type="text" placeholder="Your full name"
+                      value={name} disabled={isLoading}
+                      onChange={(e) => { setName(e.target.value); if (nameError) validateName(e.target.value) }}
+                      onBlur={() => validateName(name)}
+                      className={inputCls(nameError, name && !nameError)}
+                    />
+                  </FieldWrapper>
 
-                  {/* Email Field */}
-                  <div className="space-y-2">
-                    <label htmlFor="email" className="text-sm font-semibold text-foreground/80 flex items-center gap-2">
-                      <Mail className="h-4 w-4 text-primary-500" />
-                      Email Address
-                    </label>
-                    <div className="relative">
-                      <Input
-                        id="email"
-                        type="email"
-                        placeholder="you@example.com"
-                        value={email}
-                        onChange={(e) => {
-                          setEmail(e.target.value);
-                          if (emailError) validateEmail(e.target.value);
-                        }}
-                        onBlur={() => validateEmail(email)}
-                        className={`pl-4 pr-10 h-12 text-base border-2 rounded-xl transition-all duration-200 focus:ring-2 focus:ring-primary-500/20 ${
-                          emailError
-                            ? "border-error-400 focus:border-error-500 bg-error-50/50"
-                            : email && !emailError
-                            ? "border-success-400 focus:border-success-500 bg-success-50/50"
-                            : "border-input hover:border-primary-400"
-                        }`}
-                        disabled={isLoading}
-                      />
-                      {email && !emailError && (
-                        <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-success-600 animate-scale-in" />
-                      )}
-                    </div>
-                    {emailError && (
-                      <p className="text-sm text-error-600 flex items-center gap-1 font-medium animate-slide-up">
-                        <AlertCircle className="h-4 w-4" />
-                        {emailError}
-                      </p>
-                    )}
-                  </div>
+                  {/* Email */}
+                  <FieldWrapper
+                    id="email" label="Email address" icon={<Mail className="w-3.5 h-3.5 text-amber-500" />}
+                    error={emailError} hasValue={!!email && !emailError}
+                  >
+                    <Input
+                      id="email" type="email" placeholder="you@example.com"
+                      value={email} disabled={isLoading}
+                      onChange={(e) => { setEmail(e.target.value); if (emailError) validateEmail(e.target.value) }}
+                      onBlur={() => validateEmail(email)}
+                      className={inputCls(emailError, email && !emailError)}
+                    />
+                  </FieldWrapper>
 
-                  {/* Password Field */}
-                  <div className="space-y-2">
-                    <label htmlFor="password" className="text-sm font-semibold text-foreground/80 flex items-center gap-2">
-                      <Lock className="h-4 w-4 text-primary-500" />
-                      Password
-                    </label>
+                  {/* Password */}
+                  <FieldWrapper
+                    id="password" label="Password" icon={<Lock className="w-3.5 h-3.5 text-amber-500" />}
+                    error={passwordError} hasValue={!!password && !passwordError}
+                  >
                     <div className="relative">
                       <Input
-                        id="password"
-                        type={showPassword ? "text" : "password"}
+                        id="password" type={showPassword ? "text" : "password"}
                         placeholder="Create a secure password"
-                        value={password}
+                        value={password} disabled={isLoading}
                         onChange={(e) => {
-                          setPassword(e.target.value);
-                          if (passwordError) validatePassword(e.target.value);
-                          if (confirmPassword) validateConfirmPassword(confirmPassword);
+                          setPassword(e.target.value)
+                          if (passwordError) validatePassword(e.target.value)
+                          if (confirmPassword) validateConfirmPassword(confirmPassword)
                         }}
                         onBlur={() => validatePassword(password)}
-                        className={`pl-4 pr-12 h-12 text-base border-2 rounded-xl transition-all duration-200 focus:ring-2 focus:ring-primary-500/20 ${
-                          passwordError
-                            ? "border-error-400 focus:border-error-500 bg-error-50/50"
-                            : password && !passwordError
-                            ? "border-success-400 focus:border-success-500 bg-success-50/50"
-                            : "border-input hover:border-primary-400"
-                        }`}
-                        disabled={isLoading}
+                        className={`pr-10 ${inputCls(passwordError, password && !passwordError)}`}
                       />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary-600 transition-colors p-1 rounded-md hover:bg-gradient-primary-soft"
-                        disabled={isLoading}
-                      >
-                        {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                      <button type="button" onClick={() => setShowPassword(!showPassword)} disabled={isLoading}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600 transition-colors">
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
                     </div>
-                    {passwordError && (
-                      <p className="text-sm text-error-600 flex items-center gap-1 font-medium animate-slide-up">
-                        <AlertCircle className="h-4 w-4" />
-                        {passwordError}
-                      </p>
-                    )}
-                  </div>
+                  </FieldWrapper>
 
-                  {/* Confirm Password Field */}
-                  <div className="space-y-2">
-                    <label htmlFor="confirmPassword" className="text-sm font-semibold text-foreground/80 flex items-center gap-2">
-                      <Lock className="h-4 w-4 text-primary-500" />
-                      Confirm Password
-                    </label>
+                  {/* Confirm password */}
+                  <FieldWrapper
+                    id="confirmPassword" label="Confirm password" icon={<Lock className="w-3.5 h-3.5 text-amber-500" />}
+                    error={confirmError} hasValue={!!confirmPassword && !confirmError}
+                  >
                     <div className="relative">
                       <Input
-                        id="confirmPassword"
-                        type={showConfirmPassword ? "text" : "password"}
+                        id="confirmPassword" type={showConfirmPassword ? "text" : "password"}
                         placeholder="Re-enter your password"
-                        value={confirmPassword}
-                        onChange={(e) => {
-                          setConfirmPassword(e.target.value);
-                          if (confirmError) validateConfirmPassword(e.target.value);
-                        }}
+                        value={confirmPassword} disabled={isLoading}
+                        onChange={(e) => { setConfirmPassword(e.target.value); if (confirmError) validateConfirmPassword(e.target.value) }}
                         onBlur={() => validateConfirmPassword(confirmPassword)}
-                        className={`pl-4 pr-12 h-12 text-base border-2 rounded-xl transition-all duration-200 focus:ring-2 focus:ring-primary-500/20 ${
-                          confirmError
-                            ? "border-error-400 focus:border-error-500 bg-error-50/50"
-                            : confirmPassword && !confirmError
-                            ? "border-success-400 focus:border-success-500 bg-success-50/50"
-                            : "border-input hover:border-primary-400"
-                        }`}
-                        disabled={isLoading}
+                        className={`pr-10 ${inputCls(confirmError, confirmPassword && !confirmError)}`}
                       />
-                      <button
-                        type="button"
-                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary-600 transition-colors p-1 rounded-md hover:bg-gradient-primary-soft"
-                        disabled={isLoading}
-                      >
-                        {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                      <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} disabled={isLoading}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600 transition-colors">
+                        {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
                     </div>
-                    {confirmError && (
-                      <p className="text-sm text-error-600 flex items-center gap-1 font-medium animate-slide-up">
-                        <AlertCircle className="h-4 w-4" />
-                        {confirmError}
-                      </p>
-                    )}
-                  </div>
+                  </FieldWrapper>
 
-                  {/* Submit Button */}
-                  <Button
-                    type="submit"
-                    className="w-full h-12 border border-primary-500/10 bg-purple-500 hover:shadow-glow hover:scale-[1.02] active:scale-[0.98] hover:text-white font-bold rounded-xl transition-all duration-300 transform"
-                    disabled={isLoading}
+                  {/* Submit */}
+                  <button
+                    type="submit" disabled={isLoading}
+                    className="w-full h-11 rounded-xl bg-stone-900 text-white text-sm font-bold flex items-center justify-center gap-2 hover:bg-amber-500 hover:shadow-md transition-all duration-200 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed mt-2"
                   >
                     {isLoading ? (
-                      <>
-                        <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                        Creating account...
-                      </>
+                      <><Loader2 className="w-4 h-4 animate-spin" />Creating account…</>
                     ) : (
-                      <>
-                        <ShieldCheck className="mr-2 h-5 w-5" />
-                        Create Account
-                      </>
+                      <><ShieldCheck className="w-4 h-4" />Create Account</>
                     )}
-                  </Button>
+                  </button>
                 </form>
 
-                <div className="relative my-6">
-                  <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-border"></div>
-                  </div>
-                  <div className="relative flex justify-center text-sm">
-                    <span className="px-4 bg-card text-muted-foreground font-medium">
-                      Already a member?
-                    </span>
-                  </div>
+                <div className="flex items-center gap-3 my-5">
+                  <div className="flex-1 h-px bg-stone-100" />
+                  <span className="text-xs text-stone-400 font-medium">Already a member?</span>
+                  <div className="flex-1 h-px bg-stone-100" />
                 </div>
 
-                <div className="text-center">
-                  <p className="text-base text-muted-foreground">
-                    Already have an account?{" "}
-                    <button
-                      type="button"
-                      onClick={() => router.push("/auth/login")}
-                      className="text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 font-bold hover:underline transition-colors duration-300 inline-flex items-center gap-1"
-                      disabled={isLoading}
-                    >
-                      Sign in now →
-                    </button>
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
+                <p className="text-center text-sm text-stone-500">
+                  Already have an account?{" "}
+                  <button
+                    type="button"
+                    onClick={() => router.push("/auth/login")}
+                    disabled={isLoading}
+                    className="text-amber-600 font-bold hover:text-amber-700 transition-colors"
+                  >
+                    Sign in →
+                  </button>
+                </p>
+
+                <p className="text-center text-xs text-stone-400 mt-4 flex items-center justify-center gap-1.5">
+                  Selling products?{" "}
+                  <button
+                    type="button"
+                    onClick={() => router.push("/auth/register-vendor")}
+                    disabled={isLoading}
+                    className="text-amber-600 font-semibold hover:underline"
+                  >
+                    Register as a vendor
+                  </button>
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       </div>
     </div>
-  );
+  )
+}
+
+/* ── Helpers ── */
+function inputCls(hasError: string, isValid: boolean | string) {
+  return `h-11 rounded-xl border-2 text-sm transition-colors ${
+    hasError ? "border-red-300 bg-red-50 focus:border-red-400"
+    : isValid ? "border-green-300 bg-green-50/30 focus:border-green-400"
+    : "border-stone-200 focus:border-amber-400"
+  }`
+}
+
+function FieldWrapper({
+  id, label, icon, error, hasValue, children,
+}: {
+  id: string
+  label: string
+  icon: React.ReactNode
+  error: string
+  hasValue: boolean | string
+  children: React.ReactNode
+}) {
+  return (
+    <div className="space-y-1.5">
+      <label htmlFor={id} className="text-xs font-semibold text-stone-500 uppercase tracking-wider flex items-center gap-1.5">
+        {icon} {label}
+      </label>
+      <div className="relative">
+        {children}
+        {hasValue && !error && (
+          <CheckCircle2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 text-green-500 pointer-events-none" />
+        )}
+      </div>
+      {error && (
+        <p className="flex items-center gap-1 text-xs text-red-600 font-medium">
+          <AlertCircle className="w-3.5 h-3.5" />{error}
+        </p>
+      )}
+    </div>
+  )
 }

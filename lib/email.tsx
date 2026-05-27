@@ -1,3 +1,4 @@
+// email.tsx
 import nodemailer from "nodemailer"
 let transporter: nodemailer.Transporter | null = null
 
@@ -46,7 +47,7 @@ export async function sendEmail({
     }
 
     await emailTransporter.sendMail({
-      from: process.env.GMAIL_EMAIL,
+      from: `"LinkNSmile" <${process.env.GMAIL_EMAIL}>`,
       to,
       subject,
       html,
@@ -219,9 +220,9 @@ export function getWelcomeEmail(name: string) {
           <div class="container">
             <!-- Header -->
             <div class="header">
-              <img src="https://instapeels.com/companylogo.jpg" alt="Instapeels Logo" class="logo">
-              <h1>Welcome to Instapeels!</h1>
-              <p>Premium Skincare Solutions</p>
+             <img src="https://linknsmile.com/companylogo.jpg" alt="LinkNSmile Logo" class="logo">
+             <h1>Welcome to LinkNSmile!</h1>
+<p>India's Trusted Marketplace</p>
             </div>
 
             <!-- Content -->
@@ -229,7 +230,7 @@ export function getWelcomeEmail(name: string) {
               <p class="greeting">Hello <strong>${name}</strong>,</p>
               
               <p class="text-block">
-                Thank you for creating an account with us! We're thrilled to welcome you to the Instapeels family. You're now part of our growing community of skincare enthusiasts who trust us for premium, effective skincare solutions.
+                Thank you for creating an account with us! We're thrilled to welcome you to the LinkNSmile family.
               </p>
 
               <div class="features">
@@ -245,7 +246,7 @@ export function getWelcomeEmail(name: string) {
               </div>
 
               <div style="text-align: center;">
-                <a href="https://instapeels.com/shop" class="cta-button">Start Shopping Now</a>
+                <a href="https://linknsmile.com/products" class="cta-button">Start Shopping Now</a>
               </div>
 
               <p class="text-block">
@@ -270,14 +271,10 @@ export function getWelcomeEmail(name: string) {
                 <a href="https://instapeels.com/profile">Account</a>
               </div>
               <div class="footer-text">
-                <p><strong>Instapeels</strong></p>
-                <p>Premium Skincare for Everyone</p>
-                <p style="margin-top: 10px; color: #95a5a6;">
-                  📧 care@instapeels.com | 🌐 www.instapeels.com
-                </p>
-                <p style="margin-top: 15px; color: #bdc3c7;">
-                  &copy; 2025 Instapeels.com. All rights reserved.
-                </p>
+                <p><strong>LinkNSmile</strong></p>
+<p>Net & Work Builds Up Net-Worth</p>
+<p>📧 support@linknsmile.com | 🌐 www.linknsmile.com</p>
+<p>&copy; 2026 LinkNSmile. All rights reserved.</p>
               </div>
             </div>
           </div>

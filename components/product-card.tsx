@@ -1,19 +1,17 @@
+// components/product-card.tsx
 "use client"
 
 import { useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardFooter } from "@/components/ui/card"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useCartStore } from "@/lib/store/cart-store"
 import { useToast } from "@/hooks/use-toast"
-import { ShoppingCart, Star, Phone, Eye } from "lucide-react"
+import { ShoppingCart, Eye, Phone, Heart } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useSession } from "next-auth/react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Button } from "@/components/ui/button"
 import { ProductQuickView } from "./product-quick-view"
-
-
 
 interface Size {
   size: string
@@ -35,9 +33,9 @@ interface ProductCardProps {
   hasMultipleSizes?: boolean
   sizes?: Size[]
   stock?: number
-  shopId?: string;
-  shopName?: string;
-  commissionRate?: number;
+  shopId?: string
+  shopName?: string
+  commissionRate?: number
 }
 
 export function ProductCard({
@@ -53,358 +51,246 @@ export function ProductCard({
   stock = 999,
   shopId,
   shopName,
-  commissionRate, 
+  commissionRate,
 }: ProductCardProps) {
   const { toast } = useToast()
   const { data: session } = useSession()
-  const addItem = useCartStore((state) => state.addItem)
-  const getTotalItems = useCartStore((state) => state.getTotalItems)
+  const addItem = useCartStore((s) => s.addItem)
+  const getTotalItems = useCartStore((s) => s.getTotalItems)
   const [selectedSize, setSelectedSize] = useState<Size | null>(null)
   const [showBulkOrderModal, setShowBulkOrderModal] = useState(false)
   const [showQuickView, setShowQuickView] = useState(false)
-  const discount = discountPrice ? Math.round(((price - discountPrice) / price) * 100) : 0
-  const isSmall = size === "sm"
+  const [imgLoaded, setImgLoaded] = useState(false)
+  const [imgError, setImgError] = useState(false)
+  const [wishlisted, setWishlisted] = useState(false)
   const router = useRouter()
 
-  // Display lowest price if multiple sizes exist
-  const displayPrice = hasMultipleSizes && sizes.length > 0
-    ? Math.min(...sizes.map(s => s.discountPrice || s.price))
-    : discountPrice || price
+  const discount = discountPrice ? Math.round(((price - discountPrice) / price) * 100) : 0
+  const displayPrice =
+    hasMultipleSizes && sizes.length > 0
+      ? Math.min(...sizes.map((s) => s.discountPrice || s.price))
+      : discountPrice || price
+
+  const isOutOfStock = hasMultipleSizes
+    ? sizes.every((s) => s.stock < 3)
+    : stock < 3
+
+  const hasImage = Boolean(image)
+  const showFallback = !hasImage || imgError
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault()
     e.stopPropagation()
 
-    // Require login to add to cart
     if (!session?.user) {
-      toast({
-        title: "Sign in required",
-        description: "Please sign in to add products to your cart.",
-        variant: "destructive",
-      })
+      toast({ title: "Sign in required", description: "Please sign in to add products to your cart.", variant: "destructive" })
       router.push("/auth/login")
       return
     }
 
-    // Check cart limit - max 5 products
-    const totalItems = getTotalItems()
-    if (totalItems >= 5) {
+    if (getTotalItems() >= 5) {
       setShowBulkOrderModal(true)
       return
     }
 
-    // If product has multiple sizes, require selection
-    if (hasMultipleSizes && sizes.length > 0) {
-      if (!selectedSize) {
-        toast({
-          title: "Size required",
-          description: "Please select a size before adding to cart.",
-          variant: "destructive",
-        })
-        return
-      }
+    if (hasMultipleSizes && sizes.length > 0 && !selectedSize) {
+      toast({ title: "Size required", description: "Please select a size before adding to cart.", variant: "destructive" })
+      return
+    }
 
+    if (hasMultipleSizes && sizes.length > 0 && selectedSize) {
       addItem({
-        productId: id,
-        name,
-        price: selectedSize.price,
-        discountPrice: selectedSize.discountPrice,
-        image,
-        quantity: 1,
-        slug,
-        stock: selectedSize.stock,
-        selectedSize,
+        productId: id, name,
+        price: selectedSize.price, discountPrice: selectedSize.discountPrice,
+        image, quantity: 1, slug, stock: selectedSize.stock, selectedSize,
         shopId: (shopId || "default") as string,
-        shopName: shopName || 'LinkAndSmile',
+        shopName: shopName || "LinkAndSmile",
         commissionRate: commissionRate || 10,
       })
-
-      toast({
-        title: "Added to cart",
-        description: `${name} (${selectedSize.size}) has been added to your cart.`,
-      })
+      toast({ title: "Added to cart", description: `${name} (${selectedSize.size}) added.` })
       setSelectedSize(null)
     } else {
       addItem({
-        productId: id,
-        name,
-        price,
-        discountPrice,
-        image,
-        quantity: 1,
-        slug,
-        stock,
+        productId: id, name, price, discountPrice, image, quantity: 1, slug, stock,
         shopId: shopId || "default",
-        shopName: shopName || 'LinkAndSmile',
+        shopName: shopName || "LinkAndSmile",
         commissionRate: commissionRate || 10,
       })
-
-      toast({
-        title: "Added to cart",
-        description: `${name} has been added to your cart.`,
-      })
+      toast({ title: "Added to cart", description: `${name} added to your cart.` })
     }
   }
 
-  // Image loading / fallback states
-  const [imgLoaded, setImgLoaded] = useState(false)
-  const [imgError, setImgError] = useState(false)
-
-  // When there's no product image at all, immediately treat as error so fallback shows
-  const hasImage = Boolean(image)
-  const showFallback = !hasImage || imgError
-
-  // Check if product is out of stock
-  const isOutOfStock = hasMultipleSizes
-    ? sizes.every(s => s.stock < 3)
-    : stock < 3
-
   return (
-    <Card
-      className={`group overflow-hidden hover:shadow-lg transition-all duration-200 border border-border bg-card w-full p-0 flex flex-col ${isSmall ? "rounded-md" : "rounded-lg"}`}
-      style={{ backgroundColor: "#faf5ff" }}
-    >
-      <Link
-        href={`/products/${id}`}
-        className="flex-1 flex flex-col no-underline cursor-pointer relative"
-      >
-        <CardContent className="p-0">
-          <div className={`relative w-full ${isSmall ? "h-36" : "h-44"} bg-muted overflow-hidden`}>
-            {/* Quick View Overlay Button */}
-            <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity z-20 flex items-center justify-center">
-              <Button 
-                variant="secondary" 
-                size="sm" 
-                className="bg-white/90 hover:bg-white text-purple-700 font-semibold shadow-lg"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  setShowQuickView(true)
-                }}
-              >
-                <Eye className="w-4 h-4 mr-2" />
-                Quick View
-              </Button>
+    <>
+      <div className="group relative bg-white rounded-2xl border border-stone-100 hover:border-amber-200/60 hover:shadow-[0_8px_30px_rgb(0,0,0,0.06)] transition-all duration-300 overflow-hidden flex flex-col">
+
+        {/* Image area */}
+        <Link href={`/products/${id}`} className="block relative overflow-hidden" style={{ aspectRatio: "1/1" }}>
+          {/* Warm ambient bg */}
+          <div className="absolute inset-0 bg-gradient-to-br from-stone-50 via-amber-50/30 to-stone-50" />
+
+          {hasImage && !imgError && (
+            <Image
+              src={image!}
+              alt={name}
+              fill
+              className={`object-contain object-center transition-all duration-500 group-hover:scale-[1.04] ${imgLoaded ? "opacity-100" : "opacity-0"}`}
+              sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
+              onLoadingComplete={() => setImgLoaded(true)}
+              onError={() => { setImgError(true); setImgLoaded(true) }}
+              priority={false}
+            />
+          )}
+
+          {/* Skeleton / fallback */}
+          {(!imgLoaded || showFallback) && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              {!imgLoaded && hasImage && !imgError ? (
+                <div className="w-7 h-7 border-2 border-stone-200 border-t-amber-400 rounded-full animate-spin" />
+              ) : (
+                <svg className="w-10 h-10 text-stone-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+              )}
             </div>
+          )}
 
+          {/* Discount badge — amber, not red */}
+          {discount > 0 && (
+            <div className="absolute top-2.5 left-2.5 bg-amber-400 text-amber-900 text-[10px] font-bold px-2 py-0.5 rounded-full z-10 tracking-wide">
+              {discount}% OFF
+            </div>
+          )}
 
-            {/* Actual product image (fills area) */}
-            {hasImage && !imgError && (
-              <Image
-                src={image!}
-                alt={name}
-                fill
-                className="object-contain object-center"
-                sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, 20vw"
-                onLoadingComplete={() => setImgLoaded(true)}
-                onError={() => {
-                  setImgError(true)
-                  setImgLoaded(true)
-                }}
-                priority={false}
-              />
-            )}
+          {/* Out of stock overlay */}
+          {isOutOfStock && (
+            <div className="absolute inset-0 bg-white/70 backdrop-blur-[1px] flex items-center justify-center z-10">
+              <span className="bg-stone-700 text-white text-xs font-semibold px-3 py-1 rounded-full tracking-wide">Out of Stock</span>
+            </div>
+          )}
 
-            {/* Fallback / loader: only show when image hasn't loaded or there's an error */}
-            {(!imgLoaded || showFallback) && (
-              <div className="absolute inset-0 flex items-center justify-center bg-muted">
-                <div className="flex flex-col items-center gap-2">
-                  <div className={`${isSmall ? "w-20 h-20" : "w-28 h-28"} relative rounded-full overflow-hidden bg-white flex items-center justify-center shadow-sm`}>
+          {/* Wishlist button — top right, always visible softly */}
+          <button
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); setWishlisted((w) => !w) }}
+            className="absolute top-2.5 right-2.5 z-20 w-7 h-7 rounded-full bg-white/80 backdrop-blur-sm flex items-center justify-center shadow-sm border border-stone-100 hover:border-amber-200 transition-all duration-200"
+            aria-label="Wishlist"
+          >
+            <Heart
+              className={`w-3.5 h-3.5 transition-colors duration-200 ${wishlisted ? "fill-rose-400 text-rose-400" : "text-stone-400"}`}
+            />
+          </button>
 
-                  </div>
-
-                  {/* Show loading indicator only if still loading */}
-                  {!imgLoaded && hasImage && !imgError && (
-                    <div className="flex items-center gap-2 mt-2">
-                      <div className="animate-pulse text-xs text-muted-foreground">Loading image</div>
-                      <svg className="animate-spin -ml-1 h-4 w-4 text-muted-foreground" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
-                      </svg>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* discount badge */}
-            {discount > 0 && (
-              <div
-                className={`absolute top-2 left-2 px-2 py-0.5 rounded-md font-semibold shadow-lg z-10 ${isSmall ? "text-xs" : "text-sm"}`}
-                style={{ backgroundColor: "#C53030", color: "white" }}
-              >
-                {discount}% OFF
-              </div>
-            )}
-          </div>
-        </CardContent>
-
-        <CardFooter className={`flex flex-col p-3 ${isSmall ? "pt-2 pb-3" : "pt-3 pb-4"} flex-1`}>
-          <div className="w-full flex-1 flex flex-col">
-
-
-            <h3
-              className={`product-title ${isSmall ? "text-sm min-h-[2.5rem]" : "text-base min-h-[3rem]"} text-foreground group-hover:text-primary transition-colors line-clamp-2 leading-tight mb-1`}
-              title={name}
+          {/* Hover overlay — quick view */}
+          <div className="absolute inset-0 bg-gradient-to-t from-stone-900/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-10 flex items-end justify-center pb-3">
+            <button
+              onClick={(e) => { e.preventDefault(); e.stopPropagation(); setShowQuickView(true) }}
+              className="flex items-center gap-1.5 bg-white/95 backdrop-blur-sm text-stone-700 text-xs font-semibold px-3.5 py-1.5 rounded-full shadow-md hover:bg-white transition-colors translate-y-2 group-hover:translate-y-0 duration-300"
             >
+              <Eye className="w-3 h-3" />
+              Quick view
+            </button>
+          </div>
+        </Link>
+
+        {/* Card body */}
+        <div className="flex flex-col flex-1 p-3 gap-2.5">
+          {/* Product name */}
+          <Link href={`/products/${id}`} className="flex-1">
+            <h3 className="text-[13px] font-medium text-stone-700 line-clamp-2 leading-snug group-hover:text-stone-900 transition-colors">
               {name}
             </h3>
+          </Link>
 
-            <div className="hidden sm:flex items-center gap-1 mb-1">
-              <div className="flex">
-                {[...Array(5)].map((_, i) => (
-                  <Star key={i} className={`${isSmall ? "w-3 h-3" : "w-4 h-4"} fill-yellow-400 text-yellow-400`} />
-                ))}
-              </div>
-              <span className={`${isSmall ? "text-xs" : "text-sm"} text-muted-foreground`}> (4.5)</span>
-            </div>
-          </div>
+          {/* Size selector */}
+          {hasMultipleSizes && sizes.length > 0 && (
+            <select
+              value={selectedSize ? `${selectedSize.size}-${selectedSize.quantity}` : ""}
+              onChange={(e) => {
+                if (!e.target.value) { setSelectedSize(null); return }
+                setSelectedSize(sizes.find((s) => `${s.size}-${s.quantity}` === e.target.value) || null)
+              }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full text-xs px-2.5 py-1.5 border border-stone-200 rounded-lg bg-white text-stone-600 focus:outline-none focus:ring-1 focus:ring-amber-300 focus:border-amber-300 transition-all"
+            >
+              <option value="">Select size…</option>
+              {sizes.map((s, i) => (
+                <option key={i} value={`${s.size}-${s.quantity}`} disabled={s.stock === 0}>
+                  {s.size} ({s.quantity}{s.unit}) — ₹{s.discountPrice ?? s.price}
+                </option>
+              ))}
+            </select>
+          )}
 
-          <div className="w-full space-y-2 mt-auto">
-            <div className="flex items-center gap-2 flex-wrap">
-              {(discountPrice || (hasMultipleSizes && sizes.length > 0)) ? (
-                <>
-                  <span className={`${isSmall ? "text-sm" : "text-lg"} font-bold text-foreground`}>
-                    ₹{Math.round(displayPrice).toLocaleString()}
-                  </span>
-                  <span className={`${isSmall ? "text-xs" : "text-sm"} text-muted-foreground line-through`}>
-                    ₹{price.toLocaleString()}
-                  </span>
-                  {hasMultipleSizes && sizes.length > 0 && (
-                    <span className={`${isSmall ? "text-xs" : "text-sm"} text-muted-foreground`}>
-                      From
-                    </span>
-                  )}
-                </>
-              ) : (
-                <span className={`${isSmall ? "text-sm" : "text-lg"} font-bold text-foreground`}>
+          {/* Divider */}
+          <div className="h-px bg-stone-100" />
+
+          {/* Price + CTA */}
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex flex-col leading-tight">
+              <span className="text-[15px] font-bold text-stone-900 tracking-tight">
+                ₹{Math.round(displayPrice).toLocaleString()}
+              </span>
+              {(discountPrice || (hasMultipleSizes && sizes.some((s) => s.discountPrice))) && (
+                <span className="text-[11px] text-stone-400 line-through">
                   ₹{price.toLocaleString()}
                 </span>
               )}
             </div>
 
-            {/* Size selector for multiple sizes */}
-            {hasMultipleSizes && sizes.length > 0 && (
-              <select
-                value={selectedSize ? `${selectedSize.size}-${selectedSize.quantity}` : ""}
-                onChange={(e) => {
-                  if (!e.target.value) {
-                    setSelectedSize(null)
-                    return
-                  }
-                  const selected = sizes.find(
-                    (s) => `${s.size}-${s.quantity}` === e.target.value
-                  )
-                  setSelectedSize(selected || null)
-                }}
-                className={`w-full px-2 py-1 border border-gray-300 rounded text-xs bg-white focus:outline-none focus:border-purple-500 ${isSmall ? "text-[10px]" : "text-xs"}`}
-                onClick={(e) => e.stopPropagation()}
-              >
-                <option value="">Select size...</option>
-                {sizes.map((s, idx) => (
-                  <option
-                    key={idx}
-                    value={`${s.size}-${s.quantity}`}
-                    disabled={s.stock === 0}
-                  >
-                    {s.size} ({s.quantity}{s.unit}) - ₹{s.discountPrice ? s.discountPrice : s.price}
-                  </option>
-                ))}
-              </select>
-            )}
-
-            <Button
-              variant="gold"
-              className={`w-full ${isSmall ? "h-8 text-xs" : "h-9 text-sm"} font-medium flex items-center justify-center cursor-pointer`}
-              size={isSmall ? "sm" : "default"}
+            <button
               onClick={handleAddToCart}
               disabled={isOutOfStock || (hasMultipleSizes && sizes.length > 0 && !selectedSize)}
-              style={{ backgroundColor: isOutOfStock ? "#9CA3AF" : "#7c3aed" }}
+              className={`flex items-center gap-1.5 text-[11px] font-semibold px-3 py-2 rounded-xl transition-all duration-200 shrink-0 ${
+                isOutOfStock
+                  ? "bg-stone-100 text-stone-400 cursor-not-allowed"
+                  : "bg-stone-900 text-white hover:bg-amber-500 hover:text-white active:scale-95 shadow-sm hover:shadow-md"
+              }`}
             >
-              {isOutOfStock ? (
-                "Out of Stock"
-              ) : (
-                <>
-                  <ShoppingCart className={`${isSmall ? "w-3 h-3 mr-1.5" : "w-4 h-4 mr-2"}`} />
-                  Add
-                </>
-              )}
-            </Button>
+              <ShoppingCart className="w-3 h-3" />
+              Add
+            </button>
           </div>
-        </CardFooter>
-      </Link>
+        </div>
+      </div>
 
       {/* Bulk Order Modal */}
       <Dialog open={showBulkOrderModal} onOpenChange={setShowBulkOrderModal}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-sm rounded-2xl">
           <DialogHeader>
-            <DialogTitle>Want to do a bulk order?</DialogTitle>
+            <DialogTitle className="text-base font-bold text-stone-900">Need a bulk order?</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4">
-            <p className="text-sm text-gray-600">
-              You've reached the maximum of 5 products in your cart. For bulk orders, please contact us directly.
-            </p>
-            
-            <div className="bg-blue-50 p-4 rounded-lg space-y-3">
-              <p className="font-semibold text-sm text-gray-900">Contact Our Team:</p>
-              <div className="space-y-2">
-                <a
-                  href="tel:+919820623835"
-                  className="flex items-center gap-3 p-2 bg-white rounded border border-blue-200 hover:bg-blue-100 transition-colors"
-                >
-                  <Phone className="w-5 h-5 text-blue-600" />
-                  <span className="text-sm font-medium text-blue-600">+91 9820623835</span>
-                </a>
-                <a
-                  href="tel:+919819079079"
-                  className="flex items-center gap-3 p-2 bg-white rounded border border-blue-200 hover:bg-blue-100 transition-colors"
-                >
-                  <Phone className="w-5 h-5 text-blue-600" />
-                  <span className="text-sm font-medium text-blue-600">+91 9819079079</span>
-                </a>
-              </div>
-            </div>
-
-            <div className="flex gap-2 pt-2">
-              <Button
-                variant="outline"
-                className="flex-1"
-                onClick={() => setShowBulkOrderModal(false)}
+          <p className="text-sm text-stone-500 mb-4">
+            You've reached the 5-item cart limit. For bulk orders, contact us directly.
+          </p>
+          <div className="space-y-2 mb-4">
+            {["+91 9820623835", "+91 9819079079"].map((num) => (
+              <a
+                key={num}
+                href={`tel:${num.replace(/\s/g, "")}`}
+                className="flex items-center gap-3 p-3 bg-stone-50 rounded-xl border border-stone-100 hover:bg-amber-50 hover:border-amber-200 transition-colors"
               >
-                Continue Shopping
-              </Button>
-              <Button
-                className="flex-1"
-                style={{ backgroundColor: "#7c3aed" }}
-                onClick={() => {
-                  window.location.href = "tel:+919820623835"
-                }}
-              >
-                Call Now
-              </Button>
-            </div>
+                <Phone className="w-4 h-4 text-amber-600" />
+                <span className="text-sm font-medium text-stone-700">{num}</span>
+              </a>
+            ))}
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" className="flex-1 rounded-xl" onClick={() => setShowBulkOrderModal(false)}>
+              Continue
+            </Button>
+            <Button className="flex-1 rounded-xl bg-stone-900 hover:bg-stone-800" onClick={() => { window.location.href = "tel:+919820623835" }}>
+              Call Now
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* Product Quick View Modal */}
+      {/* Quick View */}
       <ProductQuickView
         open={showQuickView}
         onOpenChange={setShowQuickView}
-        product={{
-          id,
-          name,
-          price,
-          discountPrice,
-          image,
-          slug,
-          sizes,
-          stock,
-          shopId,
-          shopName,
-          commissionRate,
-        }}
+        product={{ id, name, price, discountPrice, image, slug, sizes, stock, shopId, shopName, commissionRate }}
       />
-    </Card>
-
+    </>
   )
 }

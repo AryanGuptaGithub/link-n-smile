@@ -1,3 +1,4 @@
+<!-- README.md -->
 <p align="center">
   <img src="./public/companylogo.jpg" alt="Instapeels logo" width="220" />
 </p>
@@ -324,5 +325,6 @@ For major features or architectural updates, please open a proposal issue first.
 
 ---
 
-**Crafted with ❤️ by [Varun Singh](https://github.com/VarunSingh19).**#   L i n k n S m i l e  
+**Crafted with ❤️ by [Varun Singh](https://github.com/VarunSingh19).**#   L i n k n S m i l e 
+ 
  

@@ -1,116 +1,136 @@
-'use client';
+// components/category-slider.tsx
+"use client"
 
-import { useEffect, useState } from 'react';
-import Link from 'next/link';
-import Image from 'next/image';
-import { ChevronRight, ChevronLeft } from 'lucide-react';
-import { Skeleton } from '@/components/ui/skeleton';
-import { motion } from 'framer-motion';
+import { useEffect, useState } from "react"
+import Link from "next/link"
+import Image from "next/image"
+import { ChevronRight } from "lucide-react"
 
 interface Category {
-  _id: string;
-  name: string;
-  slug: string;
-  image?: string;
+  _id: string
+  name: string
+  slug: string
+  image?: string
+}
+
+// Warm, earthy accent palette — cycles through categories
+const FALLBACK_PALETTES = [
+  { bg: "from-amber-100 to-orange-50", text: "text-amber-700", letter: "text-amber-500" },
+  { bg: "from-rose-100 to-pink-50",   text: "text-rose-700",  letter: "text-rose-400"  },
+  { bg: "from-teal-100 to-emerald-50",text: "text-teal-700",  letter: "text-teal-500"  },
+  { bg: "from-sky-100 to-blue-50",    text: "text-sky-700",   letter: "text-sky-500"   },
+  { bg: "from-violet-100 to-purple-50",text:"text-violet-700",letter: "text-violet-400" },
+  { bg: "from-lime-100 to-green-50",  text: "text-lime-700",  letter: "text-lime-600"  },
+  { bg: "from-orange-100 to-amber-50",text: "text-orange-700",letter: "text-orange-500" },
+]
+
+function CategorySkeleton() {
+  return (
+    <div className="flex-shrink-0 w-[90px] md:w-[108px] flex flex-col items-center gap-2.5">
+      <div className="w-[90px] h-[90px] md:w-[108px] md:h-[108px] rounded-2xl bg-stone-100 animate-pulse" />
+      <div className="h-3 w-16 rounded-full bg-stone-100 animate-pulse" />
+    </div>
+  )
 }
 
 export function CategorySlider() {
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [categories, setCategories] = useState<Category[]>([])
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        const res = await fetch('/api/categories?flat=true');
-        if (!res.ok) throw new Error('Failed to fetch categories');
-        const data = await res.json();
-        setCategories(data.filter((c: any) => c.isActive !== false));
-      } catch (error) {
-        console.error('Error fetching categories:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
+    fetch("/api/categories?flat=true")
+      .then((r) => r.json())
+      .then((data) => setCategories(data.filter((c: any) => c.isActive !== false)))
+      .catch(console.error)
+      .finally(() => setLoading(false))
+  }, [])
 
-    fetchCategories();
-  }, []);
-
-  if (loading) {
-    return (
-      <div className="max-w-7xl mx-auto px-4 py-8">
-        <div className="flex gap-4 overflow-x-hidden">
-          {[...Array(6)].map((_, i) => (
-            <div key={i} className="flex-shrink-0 w-32 md:w-40 space-y-3">
-              <Skeleton className="h-32 md:h-40 w-full rounded-2xl" />
-              <Skeleton className="h-4 w-2/3 mx-auto" />
-            </div>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  if (categories.length === 0) return null;
+  if (!loading && categories.length === 0) return null
 
   return (
-    <section className="max-w-7xl mx-auto px-4 py-8 md:py-12 overflow-hidden">
-      <div className="flex items-center justify-between mb-8">
+    <section className="max-w-7xl mx-auto px-4 sm:px-6 py-8 md:py-10">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
         <div>
-          <h2 className="text-2xl md:text-3xl font-bold text-gray-900 tracking-tight">Shop by Category</h2>
-          <p className="text-gray-500 mt-1">Discover products curated for your needs</p>
+          <h2 className="text-xl md:text-2xl font-bold text-stone-900 tracking-tight">Shop by Category</h2>
+          <p className="text-xs text-stone-400 mt-0.5 font-medium">Find exactly what you're looking for</p>
         </div>
-        <Link href="/products" className="text-purple-600 hover:text-purple-700 font-medium flex items-center gap-1 transition-all hover:gap-2">
-          View All <ChevronRight className="h-4 w-4" />
+        <Link
+          href="/products"
+          className="group flex items-center gap-1 text-sm font-medium text-amber-600 hover:text-amber-700 transition-colors"
+        >
+          View all
+          <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform duration-150" />
         </Link>
       </div>
 
-      <div className="relative group">
-        <div className="flex gap-4 md:gap-6 overflow-x-auto pb-4 scrollbar-hide snap-x no-scrollbar">
-          {categories.map((category, index) => (
-            <motion.div
-              key={category._id}
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: index * 0.05 }}
-              className="flex-shrink-0 w-28 md:w-36 snap-start"
-            >
-              <Link 
-                href={`/products?category=${category._id}`}
-                className="group block text-center space-y-3"
-              >
-                <div className="relative aspect-square rounded-2xl overflow-hidden bg-purple-50 group-hover:ring-4 group-hover:ring-purple-100 transition-all duration-300">
-                  {category.image ? (
-                    <Image
-                      src={category.image}
-                      alt={category.name}
-                      fill
-                      className="object-cover group-hover:scale-110 transition-transform duration-500"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-purple-100 text-purple-400">
-                      <span className="text-2xl font-bold">{category.name[0]}</span>
-                    </div>
+      {/* Scrollable strip */}
+      <div className="flex gap-3 md:gap-4 overflow-x-auto pb-3 scrollbar-hide snap-x snap-mandatory">
+        {loading
+          ? [...Array(7)].map((_, i) => <CategorySkeleton key={i} />)
+          : categories.map((cat, i) => {
+              const palette = FALLBACK_PALETTES[i % FALLBACK_PALETTES.length]
+              return (
+                <Link
+                  key={cat._id}
+                  href={`/products?category=${cat._id}`}
+                  className="flex-shrink-0 snap-start flex flex-col items-center gap-2.5 group"
+                  style={{
+                    opacity: 0,
+                    animation: `categoryFadeIn 0.35s ease forwards`,
+                    animationDelay: `${i * 45}ms`,
+                  }}
+                >
+                  {/* Card image */}
+                  <div className="relative w-[90px] h-[90px] md:w-[108px] md:h-[108px] rounded-2xl overflow-hidden ring-1 ring-stone-200/80 group-hover:ring-amber-300 group-hover:shadow-md transition-all duration-250 group-hover:-translate-y-0.5">
+                    {cat.image ? (
+                      <>
+                        <Image
+                          src={cat.image}
+                          alt={cat.name}
+                          fill
+                          className="object-cover group-hover:scale-[1.06] transition-transform duration-400"
+                        />
+                        {/* Frosted label bar */}
+                        <div className="absolute bottom-0 inset-x-0 h-7 bg-white/70 backdrop-blur-md flex items-center justify-center px-1.5">
+                          <span className="text-[10px] font-semibold text-stone-700 truncate leading-none text-center w-full">
+                            {cat.name}
+                          </span>
+                        </div>
+                      </>
+                    ) : (
+                      /* Colour fallback — no image */
+                      <div className={`w-full h-full flex flex-col items-center justify-center bg-gradient-to-br ${palette.bg}`}>
+                        <span className={`text-3xl font-bold leading-none ${palette.letter}`}>
+                          {cat.name[0].toUpperCase()}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Label — only shown when there is no image (image cards have it inset) */}
+                  {!cat.image && (
+                    <span className={`text-xs font-medium transition-colors duration-200 text-center line-clamp-1 max-w-[90px] md:max-w-[108px] ${palette.text} group-hover:opacity-80`}>
+                      {cat.name}
+                    </span>
                   )}
-                  <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                </div>
-                <h3 className="text-sm md:text-base font-semibold text-gray-800 group-hover:text-purple-600 transition-colors line-clamp-1">
-                  {category.name}
-                </h3>
-              </Link>
-            </motion.div>
-          ))}
-        </div>
+                  {cat.image && (
+                    /* Invisible spacer to keep grid heights consistent */
+                    <span className="text-xs opacity-0 select-none" aria-hidden>‍</span>
+                  )}
+                </Link>
+              )
+            })}
       </div>
 
       <style jsx global>{`
-        .no-scrollbar::-webkit-scrollbar {
-          display: none;
-        }
-        .no-scrollbar {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+        @keyframes categoryFadeIn {
+          from { opacity: 0; transform: translateY(8px); }
+          to   { opacity: 1; transform: translateY(0); }
         }
       `}</style>
     </section>
-  );
+  )
 }
